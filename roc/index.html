@@ -56,7 +56,7 @@ button[aria-pressed="true"]{border-color:var(--tp);color:var(--tp);background:va
 .bench-head h2{font-family:var(--sans);font-size:14px;font-weight:500;margin:0;color:var(--ink-2)}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink-2)}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
-.hist{width:100%;display:block}
+.hist{width:100%;height:176px;display:block}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;background:transparent;margin:0;height:26px}
 input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--rule);border-radius:2px}
 input[type=range]::-moz-range-track{height:3px;background:var(--rule);border-radius:2px}
@@ -64,7 +64,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;heigh
 input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--mark);border:2px solid var(--panel);cursor:grab}
 .thr-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;color:var(--ink-3)}
 .thr-val{font-variant-numeric:tabular-nums;font-size:15px;font-weight:500;color:var(--mark)}
-.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px 26px;margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--rule-2)}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px 26px;margin:20px 0 4px;padding-top:16px;border-top:1px solid var(--rule-2)}
 .ctl label{display:flex;align-items:baseline;justify-content:space-between;font-size:13px;color:var(--ink-2);margin-bottom:2px}
 .ctl .v{font-variant-numeric:tabular-nums;font-weight:500;color:var(--ink)}
 .ctl .hint{font-size:12px;color:var(--ink-3);margin-top:-2px}
@@ -74,14 +74,14 @@ legend{font-size:13px;color:var(--ink-2);padding:0;margin-bottom:6px}
 .seg button{font-size:13px;padding:6px 10px}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--rule-2)}
 .actions .sep{flex:1}
-.group{margin-top:22px}
+.group{margin-top:16px}
 .group h3{font-size:12px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:0 0 7px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:1px;background:var(--rule-2);border:1px solid var(--rule-2);border-radius:8px;overflow:hidden}
-.stat{background:var(--panel-2);padding:11px 13px}
+.stat{background:var(--panel-2);padding:9px 12px}
 .stat span{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap}
-.stat b{font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat b{font-size:19px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .stat.locked b{color:var(--tp)}
-.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;margin-top:22px;align-items:start;max-width:860px}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:16px;align-items:start;max-width:740px}
 .plot{width:100%;display:block}
 .cm{width:100%;border-collapse:collapse;font-size:14px}
 .cm caption{text-align:left;font-size:13px;color:var(--ink-2);padding-bottom:8px}
@@ -108,7 +108,7 @@ legend{font-size:13px;color:var(--ink-2);padding:0;margin-bottom:6px}
 footer{max-width:66ch;margin:52px auto 0;padding-top:18px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-3)}
 footer a{color:var(--ink-2)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (max-width:640px){.wrap{padding:20px 14px 56px}.bench{padding:15px 13px 18px}header{flex-direction:column;gap:12px}}
+@media (max-width:640px){.wrap{padding:20px 14px 56px}.bench{padding:15px 13px 18px}header{flex-direction:column;gap:12px}.hist{height:140px}h1{font-size:25px}.standfirst{font-size:16px}}
 </style>
 </head>
 <body>
@@ -144,6 +144,21 @@ footer a{color:var(--ink-2)}
     <span>predicted positive — score 1</span>
   </div>
 
+  <div class="panels">
+    <div><svg class="plot" id="roc" viewBox="0 0 320 320" role="img" aria-label="ROC curve"></svg></div>
+    <div><svg class="plot" id="pr" viewBox="0 0 320 320" role="img" aria-label="Precision-recall curve"></svg></div>
+  </div>
+
+  <div class="group">
+    <h3>At this threshold</h3>
+    <div class="stats" id="stats1"></div>
+  </div>
+
+  <div class="group">
+    <h3>Threshold-free — these don't move when you drag the threshold</h3>
+    <div class="stats" id="stats2"></div>
+  </div>
+
   <div class="controls">
     <div class="ctl">
       <label for="sep">Model quality <span class="v" id="sepV">1.8</span></label>
@@ -176,21 +191,6 @@ footer a{color:var(--ink-2)}
     <button data-preset="rare">Rare positives</button>
     <button data-preset="random">No signal</button>
     <button data-preset="perfect">Near-perfect model</button>
-  </div>
-
-  <div class="group">
-    <h3>At this threshold</h3>
-    <div class="stats" id="stats1"></div>
-  </div>
-
-  <div class="group">
-    <h3>Threshold-free — these don't move when you drag the threshold</h3>
-    <div class="stats" id="stats2"></div>
-  </div>
-
-  <div class="panels">
-    <div><svg class="plot" id="roc" viewBox="0 0 320 320" role="img" aria-label="ROC curve"></svg></div>
-    <div><svg class="plot" id="pr" viewBox="0 0 320 320" role="img" aria-label="Precision-recall curve"></svg></div>
   </div>
 
   <div class="panels" style="margin-top:8px">
