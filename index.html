@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teaching demos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1ed; --panel:#ffffff;
+  --ink:#141a1e; --ink-2:#4b555d; --ink-3:#7d878f;
+  --rule:#d6dbd5; --rule-2:#e7ebe6;
+  --accent:#1d6fb8;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12161a; --panel:#1a1f24;
+    --ink:#e9edf0; --ink-2:#a9b3ba; --ink-3:#78848c;
+    --rule:#2c333a; --rule-2:#232a30;
+    --accent:#4f9fe0;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12161a; --panel:#1a1f24;
+  --ink:#e9edf0; --ink-2:#a9b3ba; --ink-3:#78848c;
+  --rule:#2c333a; --rule-2:#232a30;
+  --accent:#4f9fe0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
+.wrap{max-width:720px;margin:0 auto;padding:clamp(36px,8vw,88px) 20px 72px}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.015em;margin:0 0 12px}
+.standfirst{font-family:var(--serif);font-size:18px;line-height:1.6;color:var(--ink-2);margin:0 0 4px;max-width:52ch}
+.rule{height:1px;background:var(--rule);margin:36px 0 8px}
+h2{font-size:12.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 18px}
+.demo{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:22px 24px;margin-bottom:14px;transition:border-color .15s ease,transform .15s ease}
+.demo:hover{border-color:var(--accent);transform:translateY(-1px)}
+.demo:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.demo h3{font-family:var(--serif);font-size:22px;font-weight:600;margin:0 0 6px;line-height:1.25}
+.demo p{font-family:var(--serif);font-size:16.5px;line-height:1.55;color:var(--ink-2);margin:0 0 14px;max-width:50ch}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{font-size:12px;color:var(--ink-3);border:1px solid var(--rule-2);border-radius:20px;padding:3px 10px}
+.arrow{color:var(--accent);font-size:14px;font-weight:500;margin-top:14px;display:inline-block}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-3)}
+footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Teaching demos</h1>
+  <p class="standfirst">Small interactive explainers for machine learning evaluation. Each one runs entirely in the browser — nothing is uploaded, nothing is stored.</p>
+
+  <div class="rule"></div>
+  <h2>Demos</h2>
+
+  <a class="demo" href="roc/">
+    <h3>Where the threshold goes</h3>
+    <p>Drag a decision threshold across two score distributions and watch the confusion matrix, the ROC curve and the precision–recall curve respond. Built to show why the two curves disagree under class imbalance.</p>
+    <div class="tags">
+      <span class="tag">binary classification</span>
+      <span class="tag">ROC-AUC</span>
+      <span class="tag">average precision</span>
+    </div>
+    <span class="arrow">Open the demo →</span>
+  </a>
+
+  <footer>
+    Source on <a href="https://github.com/gorthiittp/teaching-demos">GitHub</a>. Free to reuse and adapt for teaching.
+  </footer>
+
+</div>
+</body>
+</html>
