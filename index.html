@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Threshold, ROC and precision–recall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1ed; --panel:#ffffff; --panel-2:#f6f8f5;
+  --ink:#141a1e; --ink-2:#4b555d; --ink-3:#7d878f;
+  --rule:#d6dbd5; --rule-2:#e7ebe6;
+  --tp:#1d6fb8; --fn:rgba(29,111,184,.26); --fn-line:#1d6fb8;
+  --tn:#98a2a8; --fp:#bd3950;
+  --mark:#bd3950;
+  --focus:#1d6fb8;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12161a; --panel:#1a1f24; --panel-2:#161b20;
+    --ink:#e9edf0; --ink-2:#a9b3ba; --ink-3:#78848c;
+    --rule:#2c333a; --rule-2:#232a30;
+    --tp:#4f9fe0; --fn:rgba(79,159,224,.30); --fn-line:#4f9fe0;
+    --tn:#6e7a82; --fp:#e2647a;
+    --mark:#e2647a; --focus:#4f9fe0;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12161a; --panel:#1a1f24; --panel-2:#161b20;
+  --ink:#e9edf0; --ink-2:#a9b3ba; --ink-3:#78848c;
+  --rule:#2c333a; --rule-2:#232a30;
+  --tp:#4f9fe0; --fn:rgba(79,159,224,.30); --fn-line:#4f9fe0;
+  --tn:#6e7a82; --fp:#e2647a;
+  --mark:#e2647a; --focus:#4f9fe0;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 72px}
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(26px,4vw,38px);line-height:1.15;letter-spacing:-.01em;margin:0 0 6px}
+.standfirst{font-family:var(--serif);color:var(--ink-2);font-size:17px;line-height:1.55;max-width:56ch;margin:0}
+button{font-family:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--ink-3)}
+button:active{transform:translateY(1px)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.theme-btn{white-space:nowrap}
+.bench{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:20px 20px 24px}
+.bench-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:14px}
+.bench-head h2{font-family:var(--sans);font-size:14px;font-weight:500;margin:0;color:var(--ink-2)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink-2)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.hist{width:100%;display:block}
+.slider-rail{margin:2px 0 4px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;background:transparent;margin:0;height:26px}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--rule);border-radius:2px}
+input[type=range]::-moz-range-track{height:3px;background:var(--rule);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--mark);border:2px solid var(--panel);margin-top:-7px;cursor:grab}
+input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--mark);border:2px solid var(--panel);cursor:grab}
+.thr-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;color:var(--ink-3)}
+.thr-val{font-variant-numeric:tabular-nums;font-size:15px;font-weight:500;color:var(--mark)}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px 26px;margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--rule-2)}
+.ctl label{display:flex;align-items:baseline;justify-content:space-between;font-size:13px;color:var(--ink-2);margin-bottom:2px}
+.ctl .v{font-variant-numeric:tabular-nums;font-weight:500;color:var(--ink)}
+.ctl .hint{font-size:12px;color:var(--ink-3);margin-top:-2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--rule-2)}
+.actions .sep{flex:1}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--rule-2);border:1px solid var(--rule-2);border-radius:8px;overflow:hidden;margin:22px 0 0}
+.stat{background:var(--panel-2);padding:11px 13px}
+.stat span{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.stat b{font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:18px;margin-top:22px;align-items:start}
+.cm{width:100%;border-collapse:collapse;font-size:14px}
+.cm caption{text-align:left;font-size:13px;color:var(--ink-2);padding-bottom:8px}
+.cm th{font-weight:400;color:var(--ink-3);font-size:12.5px;text-align:left;padding:4px 8px}
+.cm td{padding:12px;border:1px solid var(--rule);font-variant-numeric:tabular-nums}
+.cm td b{display:block;font-size:20px;font-weight:500}
+.cm td span{font-size:12px;color:var(--ink-2)}
+.cm .t-tp{border-left:3px solid var(--tp)}
+.cm .t-fp{border-left:3px solid var(--fp)}
+.cm .t-fn{border-left:3px solid var(--fn-line)}
+.cm .t-tn{border-left:3px solid var(--tn)}
+.plot{width:100%;display:block}
+.prose{max-width:66ch;margin:56px auto 0;font-family:var(--serif);font-size:17.5px;line-height:1.65}
+.prose h2{font-family:var(--serif);font-size:24px;font-weight:600;line-height:1.25;margin:44px 0 10px}
+.prose h2:first-child{margin-top:0}
+.prose p{margin:0 0 16px}
+.prose ul{margin:0 0 16px;padding-left:20px}
+.prose li{margin-bottom:7px}
+.prose code,.eq{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.88em;background:var(--panel-2);border:1px solid var(--rule-2);border-radius:4px;padding:1px 5px}
+.eq{display:block;padding:10px 12px;margin:0 0 16px;white-space:pre;overflow-x:auto;font-size:14px;line-height:1.8}
+.try{font-family:var(--sans);font-size:14px;background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;margin:0 0 18px}
+.try p{margin:0 0 10px;font-family:var(--sans);font-size:14px;color:var(--ink-2)}
+.try button{font-size:13px;padding:5px 10px}
+footer{max-width:66ch;margin:52px auto 0;padding-top:18px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-3)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:640px){.wrap{padding:20px 14px 56px}.bench{padding:15px 13px 18px}header{flex-direction:column;gap:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Where the threshold goes</h1>
+    <p class="standfirst">A classifier that outputs a score between 0 and 1 hasn't decided anything yet. Move the line and watch every metric move with it.</p>
+  </div>
+  <button class="theme-btn" id="theme" aria-label="Switch colour theme">Dark</button>
+</header>
+
+<section class="bench" aria-labelledby="bench-h">
+  <div class="bench-head">
+    <h2 id="bench-h">Model scores for 2,000 samples</h2>
+    <div class="legend">
+      <span><i style="background:var(--tn)"></i>true negative</span>
+      <span><i style="background:var(--fp)"></i>false positive</span>
+      <span><i style="background:var(--fn)"></i>false negative</span>
+      <span><i style="background:var(--tp)"></i>true positive</span>
+    </div>
+  </div>
+
+  <svg class="hist" id="hist" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Histogram of model scores for both classes, split by the current threshold"></svg>
+
+  <div class="slider-rail">
+    <input type="range" id="thr" min="0" max="1000" step="1" value="500" aria-label="Decision threshold">
+  </div>
+  <div class="thr-row">
+    <span>score 0 — predicted negative</span>
+    <span>threshold <b class="thr-val" id="thrV">0.500</b></span>
+    <span>predicted positive — score 1</span>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label for="sep">Model quality <span class="v" id="sepV">1.8</span></label>
+      <input type="range" id="sep" min="0" max="40" step="1" value="18">
+      <p class="hint">Separation between the two score distributions (d′)</p>
+    </div>
+    <div class="ctl">
+      <label for="prev">Positives in the data <span class="v" id="prevV">50%</span></label>
+      <input type="range" id="prev" min="1" max="50" step="1" value="50">
+      <p class="hint">Class prevalence, π</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="sweep">Sweep the threshold</button>
+    <button id="resample">Draw a new sample</button>
+    <span class="sep"></span>
+    <button data-preset="balanced">Balanced classes</button>
+    <button data-preset="rare">Rare positives</button>
+    <button data-preset="random">Useless model</button>
+    <button data-preset="perfect">Near-perfect model</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="panels">
+    <div><svg class="plot" id="roc" viewBox="0 0 320 306" role="img" aria-label="ROC curve"></svg></div>
+    <div><svg class="plot" id="pr" viewBox="0 0 320 306" role="img" aria-label="Precision-recall curve"></svg></div>
+  </div>
+
+  <div class="panels" style="margin-top:6px">
+    <table class="cm">
+      <caption>Counts at this threshold</caption>
+      <thead><tr><th></th><th scope="col">actually positive</th><th scope="col">actually negative</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">predicted positive</th>
+          <td class="t-tp"><b id="cTP">–</b><span>true positives</span></td>
+          <td class="t-fp"><b id="cFP">–</b><span>false positives</span></td></tr>
+        <tr><th scope="row">predicted negative</th>
+          <td class="t-fn"><b id="cFN">–</b><span>false negatives</span></td>
+          <td class="t-tn"><b id="cTN">–</b><span>true negatives</span></td></tr>
+      </tbody>
+    </table>
+    <div>
+      <p style="font-size:13px;color:var(--ink-2);margin:0 0 8px">Reading down the columns gives recall and false positive rate; reading across the top row gives precision.</p>
+      <pre class="eq">recall = TP / (TP + FN)      down column 1
+FPR    = FP / (FP + TN)      down column 2
+precision = TP / (TP + FP)   across row 1</pre>
+    </div>
+  </div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</section>
+
+<div class="prose">
+
+<h2>What the two curves are</h2>
+<p>Sweeping the threshold from 1 down to 0 produces a sequence of confusion matrices. Each curve plots a different pair of rates from that sequence, so a point on a curve <em>is</em> a threshold.</p>
+<p>The <strong>ROC curve</strong> puts the false positive rate on x and recall on y. It always runs from (0,0) — threshold above every score, nothing flagged — to (1,1), where everything is flagged. Both denominators are fixed by the data rather than the threshold, which is why the curve doesn't shift when the class balance changes.</p>
+<p>The <strong>precision–recall curve</strong> puts recall on x and precision on y. Its right-hand end lands at precision = π, the prevalence, because flagging everything gets you exactly the base rate. That endpoint moves whenever the class balance moves, and so does the whole curve.</p>
+
+<h2>What the areas mean</h2>
+<p>ROC-AUC has an exact probabilistic reading: it is the chance that a randomly picked positive scores higher than a randomly picked negative. It measures ranking, nothing else. 0.5 is the diagonal — coin-flip ordering. It's unchanged by any monotone rescaling of the scores, so it says nothing about whether a score of 0.7 means a 70% chance.</p>
+<p>PR-AUC is normally computed as average precision, a sum over thresholds rather than an area under an interpolated curve:</p>
+<pre class="eq">AP = Σ (Rₙ − Rₙ₋₁) · Pₙ</pre>
+<p>Straight-line interpolation between points in PR space describes classifiers that cannot exist, so it inflates the number. Its no-skill floor is π, not 0.5 — which means an AP is meaningless unless you report the prevalence beside it.</p>
+
+<h2>Why they disagree</h2>
+<p>The difference is entirely in the denominators. FPR divides false positives by the number of negatives, so when negatives are abundant, hundreds of false alarms barely register. Precision divides by TP + FP, so those same false alarms swamp the true positives directly.</p>
+<div class="try">
+  <p>Set prevalence to 2% and leave the model quality alone. ROC-AUC barely flinches; PR-AUC collapses. Both numbers are correct — they answer different questions.</p>
+  <button data-preset="rare">Show me</button>
+</div>
+<p>Use ROC when the classes are roughly balanced, when both error types matter comparably, or when you need to compare across datasets with different prevalence. Use PR when positives are rare and it's the positive class you care about — screening, retrieval, fraud, lesion detection. One consequence of prevalence-dependence: a PR-AUC from your test set is not comparable to a published one unless the positive rates match.</p>
+
+<h2>Choosing the operating point</h2>
+<p>An area is a summary over all thresholds; deployment needs exactly one. The usual routes:</p>
+<ul>
+  <li>Fix the constraint the application actually imposes — best precision subject to recall ≥ 0.90, or best recall within an alert budget.</li>
+  <li>Maximise Youden's J (recall − FPR), which assumes the two errors cost the same.</li>
+  <li>Maximise F1, or F<sub>β</sub> with β &gt; 1 to weight recall higher.</li>
+  <li>Minimise expected cost: with a calibrated score, the optimal cut is t* = c<sub>FP</sub> / (c<sub>FP</sub> + c<sub>FN</sub>).</li>
+</ul>
+<p>Whichever you pick, pick it on validation data. A threshold tuned on the test set leaks, and the precision you report will be optimistic.</p>
+
+<h2>Things to try</h2>
+<ul>
+  <li>Push model quality to 0. The ROC curve settles on the diagonal, but the PR curve settles on a flat line at π — find the prevalence slider value that makes a useless model look like it has precision 0.5.</li>
+  <li>With rare positives, find the threshold where precision and recall cross. Notice how narrow the usable range of thresholds has become.</li>
+  <li>Draw a new sample a few times at 2% prevalence and watch how much PR-AUC moves. That spread is why both metrics need confidence intervals when positives are scarce.</li>
+  <li>Compare two settings with the same ROC-AUC but different prevalence. The ranking quality is identical; the useful precision is not.</li>
+</ul>
+
+</div>
+
+<footer>Scores are simulated: two Gaussian score distributions whose separation you control, pushed through a logistic. Nothing here is fetched or stored — refresh to reset.</footer>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var N = 2000, seed = 20260919, zPos = [], zNeg = [];
+
+  function rng(s){ return function(){ s |= 0; s = s + 0x6D2B79F5 | 0; var t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function fill(){ var r = rng(seed), i, u, v; zPos.length = 0; zNeg.length = 0;
+    for(i = 0; i < N; i++){ u = 1 - r(); v = r(); zPos.push(Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v));
+      u = 1 - r(); v = r(); zNeg.push(Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)); } }
+  function sig(x){ return 1 / (1 + Math.exp(-x)); }
+  fill();
+
+  var css = function(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
+  var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+
+  var ML = 46, MR = 14, MT = 20, MB = 46, PW = 320 - ML - MR, PH = 306 - MT - MB;
+  function px(v){ return ML + v * PW; }
+  function py(v){ return MT + (1 - v) * PH; }
+
+  function plot(el, o){
+    var s = '', i, t, ticks = [0, .25, .5, .75, 1];
+    for(i = 0; i < ticks.length; i++){
+      t = ticks[i];
+      s += '<line x1="' + px(t).toFixed(1) + '" y1="' + MT + '" x2="' + px(t).toFixed(1) + '" y2="' + (MT + PH) + '" stroke="var(--rule-2)" stroke-width="1"/>';
+      s += '<line x1="' + ML + '" y1="' + py(t).toFixed(1) + '" x2="' + (ML + PW) + '" y2="' + py(t).toFixed(1) + '" stroke="var(--rule-2)" stroke-width="1"/>';
+    }
+    for(i = 0; i < ticks.length; i += 2){
+      t = ticks[i];
+      s += '<text x="' + px(t).toFixed(1) + '" y="' + (MT + PH + 16) + '" fill="var(--ink-3)" font-size="11" text-anchor="middle">' + t + '</text>';
+      s += '<text x="' + (ML - 8) + '" y="' + (py(t) + 4).toFixed(1) + '" fill="var(--ink-3)" font-size="11" text-anchor="end">' + t + '</text>';
+    }
+    s += '<rect x="' + ML + '" y="' + MT + '" width="' + PW + '" height="' + PH + '" fill="none" stroke="var(--rule)" stroke-width="1"/>';
+    s += '<text x="' + (ML + PW / 2) + '" y="' + (MT + PH + 34) + '" fill="var(--ink-2)" font-size="12" text-anchor="middle">' + o.x + '</text>';
+    s += '<text transform="translate(13,' + (MT + PH / 2) + ') rotate(-90)" fill="var(--ink-2)" font-size="12" text-anchor="middle">' + o.y + '</text>';
+    s += '<text x="' + ML + '" y="13" fill="var(--ink)" font-size="12.5" font-weight="500">' + o.title + '</text>';
+    s += '<text x="' + (ML + PW) + '" y="13" fill="var(--ink-3)" font-size="12" text-anchor="end">' + o.note + '</text>';
+    s += '<path d="' + o.base + '" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 4" fill="none"/>';
+    var d = '', k;
+    for(k = 0; k < o.pts.length; k++) d += (k ? 'L' : 'M') + px(o.pts[k][0]).toFixed(1) + ' ' + py(o.pts[k][1]).toFixed(1) + ' ';
+    s += '<path d="' + d + 'L' + px(o.pts[o.pts.length - 1][0]).toFixed(1) + ' ' + py(0) + ' L' + px(o.pts[0][0]).toFixed(1) + ' ' + py(0) + ' Z" fill="var(--tp)" opacity=".10"/>';
+    s += '<path d="' + d + '" fill="none" stroke="var(--tp)" stroke-width="2" stroke-linejoin="round"/>';
+    s += '<line x1="' + px(o.op[0]).toFixed(1) + '" y1="' + (MT + PH) + '" x2="' + px(o.op[0]).toFixed(1) + '" y2="' + py(o.op[1]).toFixed(1) + '" stroke="var(--mark)" stroke-width="1" stroke-dasharray="2 3"/>';
+    s += '<circle cx="' + px(o.op[0]).toFixed(1) + '" cy="' + py(o.op[1]).toFixed(1) + '" r="5.5" fill="var(--mark)" stroke="var(--panel)" stroke-width="2"/>';
+    el.innerHTML = s;
+    el.setAttribute('aria-label', o.title + ', area ' + o.note + ', current operating point at ' + o.x + ' ' + o.op[0].toFixed(2) + ' and ' + o.y + ' ' + o.op[1].toFixed(2));
+  }
+
+  function stat(l, v){ return '<div class="stat"><span>' + esc(l) + '</span><b>' + v + '</b></div>'; }
+
+  function update(){
+    var thr = +$('thr').value / 1000, d = +$('sep').value / 10, pv = +$('prev').value / 100;
+    $('thrV').textContent = thr.toFixed(3);
+    $('sepV').textContent = d.toFixed(1);
+    $('prevV').textContent = Math.round(pv * 100) + '%';
+
+    var np = Math.max(10, Math.round(N * pv)), nn = N - np, i, pos = [], neg = [];
+    for(i = 0; i < np; i++) pos.push(sig(1.25 * (zPos[i] + d)));
+    for(i = 0; i < nn; i++) neg.push(sig(1.25 * zNeg[i]));
+
+    var TP = 0, FN = 0, FP = 0, TN = 0;
+    for(i = 0; i < np; i++){ if(pos[i] >= thr) TP++; else FN++; }
+    for(i = 0; i < nn; i++){ if(neg[i] >= thr) FP++; else TN++; }
+
+    var all = [], j;
+    for(i = 0; i < np; i++) all.push([pos[i], 1]);
+    for(i = 0; i < nn; i++) all.push([neg[i], 0]);
+    all.sort(function(a, b){ return b[0] - a[0]; });
+
+    var tp = 0, fp = 0, R = [[0, 0]], P = [], auc = 0, ap = 0, lx = 0, ly = 0, lastR = 0;
+    for(j = 0; j < all.length; j++){
+      if(all[j][1]) tp++; else fp++;
+      if(all[j][1]){ var rr = tp / np; ap += (rr - lastR) * (tp / (tp + fp)); lastR = rr; }
+      if(j + 1 < all.length && all[j + 1][0] === all[j][0]) continue;
+      var x = fp / nn, y = tp / np;
+      auc += (x - lx) * (y + ly) / 2; lx = x; ly = y;
+      R.push([x, y]); P.push([y, tp / (tp + fp)]);
+    }
+    if(!P.length) P = [[0, 1]];
+
+    var tpr = TP / np, fpr = FP / nn, prec = (TP + FP) > 0 ? TP / (TP + FP) : 1,
+        f1 = (prec + tpr) > 0 ? 2 * prec * tpr / (prec + tpr) : 0;
+
+    $('cTP').textContent = TP; $('cFP').textContent = FP;
+    $('cFN').textContent = FN; $('cTN').textContent = TN;
+
+    $('stats').innerHTML =
+      stat('recall (TPR)', tpr.toFixed(3)) + stat('false positive rate', fpr.toFixed(3)) +
+      stat('precision', prec.toFixed(3)) + stat('F1', f1.toFixed(3)) +
+      stat('ROC-AUC', auc.toFixed(3)) + stat('PR-AUC (AP)', ap.toFixed(3)) +
+      stat('prevalence π', (np / N).toFixed(3));
+    $('live').textContent = 'Threshold ' + thr.toFixed(2) + ': recall ' + tpr.toFixed(2) + ', precision ' + prec.toFixed(2) + ', ROC-AUC ' + auc.toFixed(3) + ', average precision ' + ap.toFixed(3) + '.';
+
+    var B = 50, hp = [], hn = [], mx = 1;
+    for(i = 0; i < B; i++){ hp.push(0); hn.push(0); }
+    for(i = 0; i < np; i++) hp[Math.min(B - 1, Math.floor(pos[i] * B))]++;
+    for(i = 0; i < nn; i++) hn[Math.min(B - 1, Math.floor(neg[i] * B))]++;
+    for(i = 0; i < B; i++) mx = Math.max(mx, hp[i], hn[i]);
+
+    var h = '', bw = 1000 / B, cut = thr * 1000;
+    for(i = 0; i < B; i++){
+      var bx = i * bw, mid = bx + bw / 2, right = mid >= cut;
+      h += '<rect x="' + (bx + .6).toFixed(1) + '" y="' + (170 - 168 * hn[i] / mx).toFixed(1) + '" width="' + (bw - 1.2).toFixed(1) + '" height="' + (168 * hn[i] / mx).toFixed(1) + '" fill="' + (right ? 'var(--fp)' : 'var(--tn)') + '"/>';
+      h += '<rect x="' + (bx + .6).toFixed(1) + '" y="' + (170 - 168 * hp[i] / mx).toFixed(1) + '" width="' + (bw - 1.2).toFixed(1) + '" height="' + (168 * hp[i] / mx).toFixed(1) + '" fill="' + (right ? 'var(--tp)' : 'var(--fn)') + '"/>';
+    }
+    h += '<line x1="0" y1="170" x2="1000" y2="170" stroke="var(--rule)" stroke-width="1"/>';
+    h += '<line x1="' + cut.toFixed(1) + '" y1="2" x2="' + cut.toFixed(1) + '" y2="180" stroke="var(--mark)" stroke-width="2"/>';
+    $('hist').innerHTML = h;
+
+    plot($('roc'), { title: 'ROC', note: 'AUC ' + auc.toFixed(3), x: 'false positive rate', y: 'recall',
+      pts: R, op: [fpr, tpr], base: 'M' + px(0) + ' ' + py(0) + ' L' + px(1) + ' ' + py(1) });
+    plot($('pr'), { title: 'precision–recall', note: 'AP ' + ap.toFixed(3), x: 'recall', y: 'precision',
+      pts: P, op: [tpr, prec], base: 'M' + px(0) + ' ' + py(np / N).toFixed(1) + ' L' + px(1) + ' ' + py(np / N).toFixed(1) });
+  }
+
+  ['thr', 'sep', 'prev'].forEach(function(id){ $(id).addEventListener('input', update); });
+
+  $('resample').addEventListener('click', function(){ seed = (seed * 7919 + 104729) % 2147483647; fill(); update(); });
+
+  var presets = { balanced: [18, 50, 500], rare: [18, 2, 500], random: [0, 50, 500], perfect: [40, 50, 500] };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-preset]'), function(b){
+    b.addEventListener('click', function(){
+      var p = presets[b.getAttribute('data-preset')];
+      $('sep').value = p[0]; $('prev').value = p[1]; $('thr').value = p[2];
+      update();
+      document.querySelector('.bench').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  var running = 0;
+  $('sweep').addEventListener('click', function(){
+    if(running){ cancelAnimationFrame(running); running = 0; $('sweep').textContent = 'Sweep the threshold'; return; }
+    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, v = 1000;
+    $('sweep').textContent = 'Stop';
+    (function step(){
+      v -= reduce ? 40 : 7;
+      if(v <= 0){ v = 0; $('thr').value = 0; update(); running = 0; $('sweep').textContent = 'Sweep the threshold'; return; }
+      $('thr').value = v; update();
+      running = requestAnimationFrame(step);
+    })();
+  });
+
+  var themeBtn = $('theme');
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t);
+    themeBtn.textContent = t === 'dark' ? 'Light' : 'Dark';
+    try { localStorage.setItem('rocpr-theme', t); } catch(e){}
+  }
+  try {
+    var saved = localStorage.getItem('rocpr-theme');
+    if(saved) applyTheme(saved);
+    else themeBtn.textContent = matchMedia('(prefers-color-scheme: dark)').matches ? 'Light' : 'Dark';
+  } catch(e){}
+  themeBtn.addEventListener('click', function(){
+    var cur = document.documentElement.getAttribute('data-theme');
+    if(!cur) cur = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+    update();
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
