@@ -144,14 +144,16 @@ footer{margin-top:3.2rem; padding-top:1rem; border-top:1px solid var(--rule); fo
             <div class="seg lose" id="segLose" style="width:50%"></div>
           </div>
           <div class="barkey">
-            <span class="k-keep">kept &middot; variance along the line <b id="vKeep">—</b></span>
+            <span class="k-keep">kept &middot; <span id="labKeep">variance along the line</span> <b id="vKeep">—</b></span>
             <span class="k-lose"><b id="vLose">—</b> lost &middot; mean squared residual</span>
           </div>
-          <div class="total"><span>these always sum to tr(S)</span><b id="vTotal">—</b></div>
+          <div class="total"><span id="labTotal">these always sum to tr(S)</span><b id="vTotal">—</b></div>
         </div>
 
         <svg id="profile" viewBox="0 0 440 168" role="img"
              aria-label="Variance of the projection as a function of the direction angle"></svg>
+
+        <p class="hint" id="uncNote" style="margin:.5rem 0 0">&nbsp;</p>
 
         <table class="mat">
           <tr><td>S</td><td class="v" id="s11">—</td><td class="v" id="s12">—</td>
@@ -235,6 +237,7 @@ footer{margin-top:3.2rem; padding-top:1rem; border-top:1px solid var(--rule); fo
 
   <footer>
     Points are simulated from a bivariate Gaussian whose correlation and scaling you control. Nothing is fetched or stored &mdash; refresh to reset.
+    <br>Next in this pair: <a href="../pca2/">How many components is enough?</a>
   </footer>
 </div>
 
@@ -259,7 +262,9 @@ var state = {
   outlier: null,      // {x,y} in world units, or null
   pts: [],
   view: null,
-  sweeping: false
+  sweeping: false,
+  seen: new Uint8Array(181),
+  lastBin: null
 };
 
 // ---------- random ----------
@@ -271,6 +276,19 @@ function gauss(){
 }
 
 var MEAN = {x:3.0, y:3.0};
+
+function markSeen(deg){
+  var b = Math.round(((deg % 180) + 180) % 180);
+  if(b > 180) b = 180;
+  if(state.lastBin !== null && Math.abs(b - state.lastBin) <= 8){
+    var a = Math.min(b, state.lastBin), z = Math.max(b, state.lastBin);
+    for(var i = a; i <= z; i++) state.seen[i] = 1;
+  }else{
+    state.seen[b] = 1;
+  }
+  state.lastBin = b;
+}
+function clearSeen(){ state.seen.fill(0); state.lastBin = null; }
 
 function generate(){
   var r = state.corr, k = Math.pow(10, state.logScale);
@@ -453,13 +471,25 @@ function drawProfile(st){
     profile.appendChild(t);
   });
 
-  // curve
+  // the whole curve, faint: where the answer would be if you looked everywhere
   var d = "", i;
   for(i=0;i<=180;i++){
     var v = J(st, i*Math.PI/180);
     d += (i===0 ? "M" : "L") + X(i).toFixed(2) + " " + Y(v).toFixed(2);
   }
-  profile.appendChild(el("path",{d:d,fill:"none",stroke:C.keep,"stroke-width":2,"stroke-linejoin":"round"}));
+  profile.appendChild(el("path",{d:d,fill:"none",stroke:C.keep,"stroke-width":2,
+    "stroke-linejoin":"round","stroke-opacity":".2"}));
+
+  // solid only across the angles actually visited, so the curve is drawn by the knob
+  var run = "";
+  for(i=0;i<=180;i++){
+    if(state.seen[i]){
+      var vv = J(st, i*Math.PI/180);
+      run += (run === "" || !state.seen[i-1] ? "M" : "L") + X(i).toFixed(2) + " " + Y(vv).toFixed(2);
+    }
+  }
+  if(run) profile.appendChild(el("path",{d:run,fill:"none",stroke:C.keep,
+    "stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"}));
 
   // best-direction tick
   var bd = st.best*180/Math.PI;
@@ -485,8 +515,14 @@ function render(){
   var lose = Math.max(0, st.tr - keep);
   var pct = st.tr > 0 ? 100*keep/st.tr : 0;
 
+  markSeen(state.theta*180/Math.PI);
   drawScatter(st);
   drawProfile(st);
+
+  $("labKeep").textContent = state.centred ? "variance along the line" : "spread about the origin";
+  $("labTotal").textContent = state.centred ? "these always sum to tr(S)" : "these always sum to the total spread";
+  $("uncNote").innerHTML = state.centred ? "&nbsp;"
+    : "Measured about the origin, so S is not a covariance matrix and these are not variances.";
 
   $("segKeep").style.width = pct.toFixed(2) + "%";
   $("segLose").style.width = (100-pct).toFixed(2) + "%";
@@ -563,16 +599,16 @@ elTheta.addEventListener("input", function(){
   state.theta = Number(elTheta.value)*Math.PI/180; render();
 });
 elCorr.addEventListener("input", function(){
-  state.corr = Number(elCorr.value); generate(); refit(); render();
+  state.corr = Number(elCorr.value); generate(); clearSeen(); refit(); render();
 });
 elScale.addEventListener("input", function(){
-  state.logScale = Number(elScale.value); generate(); refit(); render();
+  state.logScale = Number(elScale.value); generate(); clearSeen(); refit(); render();
 });
 elN.addEventListener("input", function(){
-  state.n = Number(elN.value); generate(); refit(); render();
+  state.n = Number(elN.value); generate(); clearSeen(); refit(); render();
 });
 
-$("resample").addEventListener("click", function(){ generate(); refit(); render(); });
+$("resample").addEventListener("click", function(){ generate(); clearSeen(); refit(); render(); });
 
 $("resid").addEventListener("click", function(){
   state.showResid = !state.showResid;
@@ -599,6 +635,7 @@ $("outlier").addEventListener("click", function(){
 
 $("centre").addEventListener("click", function(){
   state.centred = !state.centred;
+  clearSeen();
   this.textContent = state.centred ? "Turn centring off" : "Turn centring on";
   this.classList.toggle("on", !state.centred);
   refit(); render();
@@ -668,7 +705,7 @@ Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), functio
     state.centred = p.centred;
     $("centre").textContent = "Turn centring off";
     $("centre").classList.remove("on");
-    generate();
+    generate(); clearSeen();
     if(p.outlier){
       state.outlier = { x: MEAN.x - 5.2, y: MEAN.y + 5.6 };
       $("outlier").textContent = "Remove the outlier";
